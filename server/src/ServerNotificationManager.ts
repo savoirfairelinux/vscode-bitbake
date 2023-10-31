@@ -4,6 +4,7 @@
  * ------------------------------------------------------------------------------------------ */
 
 import { type Connection } from 'vscode-languageserver'
+import { NotificationType } from 'bitbake-common'
 
 let _connection: Connection | null = null
 
@@ -13,9 +14,6 @@ let _connection: Connection | null = null
 export function setNotificationManagerConnection (connection: Connection): void {
   _connection = connection
 }
-
-export type NotificationType =
-  'custom/bitBakeNotFound'
 
 class ServerNotificationManager {
   send (type: NotificationType, message?: string): void {
@@ -28,7 +26,7 @@ class ServerNotificationManager {
   }
 
   sendBitBakeNotFound (): void {
-    this.send('custom/bitBakeNotFound')
+    this.send(NotificationType.BitBakeNotFound)
   }
 }
 

@@ -6,6 +6,8 @@
 import { type Memento, commands, window } from 'vscode'
 import { type LanguageClient, type Disposable } from 'vscode-languageclient/node'
 
+import { NotificationType } from 'bitbake-common'
+
 export class ClientNotificationManager {
   private readonly _client: LanguageClient
   private readonly _memento: Memento
@@ -24,11 +26,11 @@ export class ClientNotificationManager {
   }
 
   private buildBitBakeNotFoundHandler (): Disposable {
-    const isNeverShowAgain = this.checkIsNeverShowAgain('custom/bitBakeNotFound')
+    const isNeverShowAgain = this.checkIsNeverShowAgain(NotificationType.BitBakeNotFound)
     if (isNeverShowAgain) {
       return { dispose: () => {} }
     }
-    return this._client.onNotification('custom/bitBakeNotFound', () => {
+    return this._client.onNotification(NotificationType.BitBakeNotFound, () => {
       void window.showErrorMessage(
         'BitBake folder could not be found. Please set its path in the settings. Optionally, also set an environment script.',
         'Open Settings',
@@ -39,17 +41,17 @@ export class ClientNotificationManager {
           if (item === 'Open Settings') {
             void commands.executeCommand('workbench.action.openSettings', 'bitbake')
           } else if (item === 'Never Show Again') {
-            void this.neverShowAgain('custom/bitBakeNotFound')
+            void this.neverShowAgain(NotificationType.BitBakeNotFound)
           }
         })
     })
   }
 
-  private neverShowAgain (method: string): Thenable<void> {
+  private neverShowAgain (method: NotificationType): Thenable<void> {
     return this._memento.update(`neverShowAgain/${method}`, true)
   }
 
-  private checkIsNeverShowAgain (method: string): boolean {
+  private checkIsNeverShowAgain (method: NotificationType): boolean {
     return this._memento.get(`neverShowAgain/${method}`, false)
   }
 }

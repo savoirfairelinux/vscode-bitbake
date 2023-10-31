@@ -1,20 +1,17 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
     "module": "commonjs",
-    "moduleResolution": "node",
-    "sourceMap": true,
+    "target": "es2020",
+    "lib": ["es2020"],
+    "outDir": "out",
     "rootDir": "src",
-    "outDir": "../client/server",
+    "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-		"composite": true
+    "composite": true
   },
   "include": ["src", ".eslintrc.js"],
-  "exclude": ["node_modules"],
-	"references": [
-		{ "path": "../common" }
-	]
+  "exclude": ["node_modules", ".vscode-test"]
 }

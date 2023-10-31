@@ -13,5 +13,8 @@
     "composite": true
   },
   "include": ["src", ".eslintrc.js"],
-  "exclude": ["node_modules", ".vscode-test"]
+  "exclude": ["node_modules", ".vscode-test"],
+	"references": [
+		{ "path": "../common" }
+	]
 }

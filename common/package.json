@@ -1,0 +1,8 @@
+{
+  "name": "bitbake-common",
+  "version": "1.1.2",
+  "description": "Common types and tools for client and server",
+  "author": "Savoir-faire Linux",
+  "license": "MIT",
+  "main": "./out/index"
+}
