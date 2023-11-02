@@ -6,7 +6,7 @@
 import { type Memento, commands, window } from 'vscode'
 import { type LanguageClient, type Disposable } from 'vscode-languageclient/node'
 
-export class ClientNotificationManager {
+export class PopupManager {
   private readonly _client: LanguageClient
   private readonly _memento: Memento
 

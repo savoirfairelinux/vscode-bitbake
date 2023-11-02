@@ -6,7 +6,7 @@
 import * as vscode from 'vscode'
 import { type LanguageClient } from 'vscode-languageclient/node'
 
-import { ClientNotificationManager } from './ui/ClientNotificationManager'
+import { PopupManager } from './ui/PopupManager'
 import { logger } from './lib/src/utils/OutputLogger'
 import { activateLanguageServer, deactivateLanguageServer } from './language/languageClient'
 import { BitbakeDriver } from './lib/src/BitbakeDriver'
@@ -37,7 +37,7 @@ export async function activate (context: vscode.ExtensionContext): Promise<void>
 
   taskProvider = vscode.tasks.registerTaskProvider('bitbake', bitbakeTaskProvider)
 
-  const notificationManager = new ClientNotificationManager(client, context.globalState)
+  const notificationManager = new PopupManager(client, context.globalState)
   context.subscriptions.push(...notificationManager.buildHandlers())
 
   // Handle settings change for bitbake driver

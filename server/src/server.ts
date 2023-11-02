@@ -25,7 +25,7 @@ import { logger } from './lib/src/utils/OutputLogger'
 import { onCompletionHandler } from './connectionHandlers/onCompletion'
 import { onDefinitionHandler } from './connectionHandlers/onDefinition'
 import { setOutputParserConnection } from './OutputParser'
-import { setNotificationManagerConnection, serverNotificationManager } from './ServerNotificationManager'
+import { setNotificationManagerConnection, notificationManager } from './NotificationManager'
 import { onHoverHandler } from './connectionHandlers/onHover'
 
 // Create a connection for the server. The connection uses Node's IPC as a transport
@@ -72,7 +72,7 @@ function checkBitbakePresence (): void {
   const bitbakeBinPath = bitbakeFolder + '/bin/bitbake'
 
   if (!fs.existsSync(bitbakeBinPath)) {
-    serverNotificationManager.sendBitBakeNotFound()
+    notificationManager.sendBitBakeNotFound()
   }
 }
 

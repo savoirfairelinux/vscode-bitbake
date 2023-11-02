@@ -17,7 +17,7 @@ export function setNotificationManagerConnection (connection: Connection): void 
 export type NotificationType =
   'custom/bitBakeNotFound'
 
-class ServerNotificationManager {
+class NotificationManager {
   send (type: NotificationType, message?: string): void {
     if (_connection === null) {
       // eslint-disable-next-line no-console
@@ -32,4 +32,4 @@ class ServerNotificationManager {
   }
 }
 
-export const serverNotificationManager = new ServerNotificationManager()
+export const notificationManager = new NotificationManager()
