@@ -66,7 +66,8 @@ export async function activateLanguageServer (context: ExtensionContext): Promis
       ]
     },
     initializationOptions: {
-      storagePath: context.storageUri?.fsPath
+      storagePath: context.storageUri?.fsPath,
+      extensionPath: context.extensionPath
     },
     middleware: {
       provideCompletionItem: middlewareProvideCompletion,
