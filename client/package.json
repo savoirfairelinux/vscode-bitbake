@@ -54,7 +54,9 @@
       {
         "language": "bitbake",
         "scopes": {
-          "operator.readonly": ["keyword.other.bitbake-operator.bb"]
+          "operator.readonly": [
+            "keyword.other.bitbake-operator.bb"
+          ]
         }
       }
     ],
