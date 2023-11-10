@@ -4,9 +4,12 @@
 name: Update Tree Sitter WASM File
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 12 * * 2'
+  push:
+    branches:
+      - '*'    
+  # workflow_dispatch:
+  # schedule:
+  #   - cron: '0 12 * * 2'
 
 jobs:
   build:
