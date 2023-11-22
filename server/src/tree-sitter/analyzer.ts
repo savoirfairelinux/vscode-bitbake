@@ -19,13 +19,15 @@ import type { TextDocument } from 'vscode-languageserver-textdocument'
 import { type EmbeddedRegions, getEmbeddedRegionsFromNode, getGlobalDeclarations, type GlobalDeclarations } from './declarations'
 import { debounce } from '../utils/async'
 import { type Tree } from 'web-tree-sitter'
-import { range } from './utils'
+import * as TreeSitterUtils from './utils'
 import { type DirectiveStatementKeyword } from '../lib/src/types/directiveKeywords'
+import { logger } from '../lib/src/utils/OutputLogger'
 const DEBOUNCE_TIME_MS = 500
 
 interface AnalyzedDocument {
   document: TextDocument
   globalDeclarations: GlobalDeclarations
+  sourceUris: Array<{ range: Range, uri: string }>
   embeddedRegions: EmbeddedRegions
   tree: Parser.Tree
 }
@@ -63,11 +65,13 @@ export default class Analyzer {
 
     const tree = this.parser.parse(fileContent)
     const globalDeclarations = getGlobalDeclarations({ tree, uri })
+    const sourceUris = this.getSourceUriInStringContent(tree)
     const embeddedRegions = getEmbeddedRegionsFromNode(tree, uri)
 
     this.uriToAnalyzedDocument[uri] = {
       document,
       globalDeclarations,
+      sourceUris,
       embeddedRegions,
       tree
     }
@@ -86,6 +90,70 @@ export default class Analyzer {
     // It was used to provide diagnostics from tree-sitter, but it is not yet reliable.
 
     return diagnostics
+  }
+
+  // For SRC_URI and LICFILES_CHECKSUM
+  public getSourceUriInStringContent (tree: Parser.Tree): Array<{ range: Range, uri: string }> {
+    logger.debug('[getSourceUriInStringContent]')
+    const uris: Array<{ range: Range, uri: string }> = []
+    const variableToCheck = ['SRC_URI', 'LICFILES_CHECKSUM']
+    const uriRegex = /(file:\/\/)(?<uri>.*)\b/g
+    tree.rootNode.children.forEach((n) => {
+      const isTargetVariable = n.type === 'variable_assignment' &&
+      n.firstNamedChild?.type === 'identifier' &&
+      n.firstNamedChild?.text !== undefined &&
+      variableToCheck.includes(n.firstNamedChild.text)
+      if (isTargetVariable) {
+        logger.debug(`Found target variable: ${n.firstNamedChild?.text}`)
+        // As per the structure of variable_assignment in the syntax tree
+        n.child(2)?.firstChild?.children.forEach((childNode) => {
+          if (childNode.type === 'string_content') {
+            logger.debug(`Found string content: ${JSON.stringify(childNode.text)}`)
+            logger.debug(`Split with newline character: ${JSON.stringify(childNode.text.split(/\n/g))}`)
+            const splittedStringContent = childNode.text.split(/\n/g)
+            for (let i = 0; i < splittedStringContent.length; i++) {
+              const line = splittedStringContent[i]
+              for (const match of line.matchAll(uriRegex)) {
+                const uri = match.groups?.uri
+                if (match !== undefined && uri !== undefined) {
+                  logger.debug(`match: ${JSON.stringify(match)}`)
+                  logger.debug(`match index: ${match.index} and length: ${match[0].length}`)
+                  uris.push({
+                    range: {
+                      start: {
+                        line: childNode.startPosition.row + i,
+                        character: match.index ?? 0
+                      },
+                      end: {
+                        line: childNode.startPosition.row + i,
+                        character: (match.index ?? 0) + match[0].length
+                      }
+                    },
+                    uri
+                  })
+                }
+              }
+            }
+          }
+        })
+      }
+    })
+    logger.debug(`[getSourceUriInStringContent] uris: ${JSON.stringify(uris)}`)
+    return uris
+  }
+
+  public getSourceUriForPosition (uri: string, line: number, column: number): string | undefined {
+    const analyzedDocument = this.uriToAnalyzedDocument[uri]
+    if (analyzedDocument !== undefined) {
+      const { sourceUris } = analyzedDocument
+      for (const sourceUri of sourceUris) {
+        const { range } = sourceUri
+        if (line === range.start.line && column >= range.start.character && column <= range.end.character) {
+          return sourceUri.uri
+        }
+      }
+    }
+    return undefined
   }
 
   public getGlobalDeclarationSymbols (uri: string): SymbolInformation[] {
@@ -297,7 +365,7 @@ export default class Analyzer {
       return undefined
     }
 
-    return range(n)
+    return TreeSitterUtils.range(n)
   }
 
   /**
@@ -325,7 +393,7 @@ export default class Analyzer {
   /**
    * Find the node at the given point.
    */
-  private nodeAtPoint (
+  public nodeAtPoint (
     uri: string,
     line: number,
     column: number

@@ -4,15 +4,18 @@
  * ------------------------------------------------------------------------------------------ */
 
 import { logger } from '../lib/src/utils/OutputLogger'
-import { type TextDocumentPositionParams, type Definition } from 'vscode-languageserver/node'
+import { type TextDocumentPositionParams, type Definition, Location, Range } from 'vscode-languageserver/node'
 import { analyzer } from '../tree-sitter/analyzer'
 import { type DirectiveStatementKeyword } from '../lib/src/types/directiveKeywords'
 import { definitionProvider } from '../DefinitionProvider'
+import { bitBakeProjectScanner } from '../BitBakeProjectScanner'
+import fs from 'fs'
+import path from 'path'
 
 export function onDefinitionHandler (textDocumentPositionParams: TextDocumentPositionParams): Definition | null {
   const { textDocument, position } = textDocumentPositionParams
   logger.debug(`[onDefinition] Position: Line ${position.line} Character ${position.character}`)
-
+  logger.debug(`textdocument uri: ${textDocument.uri}`)
   const documentAsText = analyzer.getDocumentTexts(textDocument.uri)
   if (documentAsText === undefined) {
     logger.debug(`[onDefinition] Document not found for ${textDocument.uri}`)
@@ -28,7 +31,53 @@ export function onDefinitionHandler (textDocumentPositionParams: TextDocumentPos
     return definition
   }
 
+  // SRC_URI & LICFILES_CHECKSUM
+  const sourceUri = analyzer.getSourceUriForPosition(textDocument.uri, position.line, position.character)
+  if (sourceUri !== undefined) {
+    return getDefinitionForSourceUris(sourceUri, textDocument.uri)
+  }
   return getDefinition(textDocumentPositionParams, documentAsText)
+}
+
+function getDefinitionForSourceUris (sourceUri: string, textDocumentUri: string): Definition {
+  const found = bitBakeProjectScanner.recipes.find((recipe) => {
+    return textDocumentUri.replace('file://', '').includes(recipe.name)
+  })
+  logger.debug(`[getDefinitionForSourceUris] foundInProjectScanner: ${JSON.stringify(found)}`)
+  let searchFolder = found?.path?.dir
+  if (searchFolder !== undefined && found?.layerInfo !== undefined) {
+    searchFolder.replace(found.layerInfo.path, '')
+  }
+  // TODO: Get the layer folder for searching the file
+  searchFolder = '/home/zwang/projects/poky'
+  logger.debug(`[getDefinitionForSourceUris] searchFolder: ${searchFolder}`)
+  logger.debug(`[getDefinitionForSourceUris] sourceUri: ${sourceUri}`)
+  const file = findFileInDirectory(searchFolder, sourceUri)
+  logger.debug(`[getDefinitionForSourceUris] file: ${file}`)
+
+  const url: string = 'file://' + file
+  const location: Location = Location.create(encodeURI(url), Range.create(0, 0, 0, 0))
+  // let filePath = findFileInDirectory('/path/to/your/workspace', 'filename.ext');
+  return location
+}
+
+function findFileInDirectory (dir: string, fileName: string): string | null {
+  try {
+    const filePaths = fs.readdirSync(dir).map(name => path.join(dir, name))
+    for (const filePath of filePaths) {
+      if (fs.statSync(filePath).isDirectory()) {
+        const result = findFileInDirectory(filePath, fileName)
+        if (result !== null) return result
+      } else if (path.basename(filePath) === fileName) {
+        return filePath
+      }
+    }
+  } catch {
+    logger.debug(`[findFileInDirectory] ${dir} not found`)
+    return null
+  }
+
+  return null
 }
 
 function getDefinitionForDirectives (directiveStatementKeyword: DirectiveStatementKeyword, textDocumentPositionParams: TextDocumentPositionParams, documentAsText: string[]): Definition {
