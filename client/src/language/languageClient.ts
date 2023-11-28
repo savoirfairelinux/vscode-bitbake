@@ -4,6 +4,7 @@
  * ------------------------------------------------------------------------------------------ */
 
 import * as path from 'path'
+import fs from 'fs'
 
 import {
   workspace,
@@ -22,6 +23,7 @@ import { NotificationMethod, type NotificationParams } from '../lib/src/types/no
 import { middlewareProvideCompletion } from './middlewareCompletion'
 import { middlewareProvideHover } from './middlewareHover'
 import { requestsManager } from './RequestManager'
+import { logger } from '../lib/src/utils/OutputLogger'
 
 const notifyFileRenameChanged = async (
   client: LanguageClient,
@@ -31,6 +33,8 @@ const notifyFileRenameChanged = async (
   const params: NotificationParams['FilenameChanged'] = { oldUriString, newUriString }
   await client.sendNotification(NotificationMethod.FilenameChanged, params)
 }
+
+let storagePath: string | undefined
 
 export async function activateLanguageServer (context: ExtensionContext): Promise<LanguageClient> {
   const serverModule = context.asAbsolutePath(path.join('server', 'server.js'))
@@ -75,6 +79,7 @@ export async function activateLanguageServer (context: ExtensionContext): Promis
       provideHover: middlewareProvideHover
     }
   }
+  storagePath = context.storageUri?.fsPath
 
   // Create the language client and start the client.
   const client: LanguageClient = new LanguageClient('bitbake', 'Bitbake Language Server', serverOptions, clientOptions)
@@ -107,5 +112,17 @@ export async function deactivateLanguageServer (client: LanguageClient): Promise
   if (client === undefined) {
     return undefined
   }
+  await new Promise<void>((resolve) => {
+    if (storagePath === undefined) {
+      resolve()
+      return
+    }
+    fs.rm(path.join(storagePath, 'embedded-documents'), { recursive: true }, (err) => {
+      if (err !== null) {
+        logger.error(`Failed to remove embedded language documents folder: ${err as any}`)
+      }
+      resolve()
+    })
+  })
   await client.stop()
 }
