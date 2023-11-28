@@ -39,6 +39,7 @@ export class BitBakeProjectScanner {
   private _shouldDeepExamine: boolean = false
   private _bitbakeDriver: BitbakeDriver | undefined
   private _languageClient: LanguageClient | undefined
+  private containerWorkdir: string | undefined
 
   setDriver (bitbakeDriver: BitbakeDriver): void {
     this._bitbakeDriver = bitbakeDriver
@@ -78,6 +79,7 @@ export class BitBakeProjectScanner {
       this.onChange.emit('startScan')
 
       try {
+        await this.scanContainerWorkdir()
         await this.scanAvailableLayers()
         this.scanForClasses()
         this.scanForIncludeFiles()
@@ -107,6 +109,11 @@ export class BitBakeProjectScanner {
       logger.info('scan is already running, set the pending flag')
       this._scanStatus.scanIsPending = true
     }
+  }
+
+  private async scanContainerWorkdir (): Promise<void> {
+    // TODO How do we guess this?
+    this.containerWorkdir = '/work'
   }
 
   private printScanStatistic (): void {
@@ -145,21 +152,38 @@ export class BitBakeProjectScanner {
       }
 
       for (const element of outputLines.slice(layersFirstLine + 2)) {
-        const tempElement: string[] = element.split(/\s+/)
+        const tempElement = element.split(/\s+/)
         const layerElement = {
           name: tempElement[0],
-          path: tempElement[1],
+          path: this.resolveContainerPath(tempElement[1]),
           priority: parseInt(tempElement[2])
         }
 
-        if ((layerElement.name !== undefined) && (layerElement.path !== undefined) && layerElement.priority !== undefined) {
-          this._bitbakeScanResult._layers.push(layerElement)
+        if ((layerElement.name !== undefined) && (layerElement.path !== undefined) && (layerElement.priority !== undefined)) {
+          this._bitbakeScanResult._layers.push(layerElement as LayerInfo)
         }
       }
     } else {
       const error = commandResult.stderr.toString()
       logger.error(`can not scan available layers error: ${error}`)
     }
+  }
+
+  /// If a docker container is used, the workdir may be different from the host system.
+  /// This function resolves the path to the host system.
+  private resolveContainerPath (filePath: string | undefined): string | undefined {
+    if (filePath === undefined) {
+      return undefined
+    }
+    if (this.containerWorkdir === undefined) {
+      return filePath
+    }
+    const hostWorkdir = this.bitbakeDriver?.bitbakeSettings.workingDirectory
+    if (hostWorkdir === undefined) {
+      throw new Error('hostWorkdir is undefined')
+    }
+    const relativePath = path.relative(this.containerWorkdir, filePath)
+    return path.resolve(hostWorkdir, relativePath)
   }
 
   private searchFiles (pattern: string): ElementInfo[] {
@@ -181,6 +205,7 @@ export class BitBakeProjectScanner {
           elements.push(element)
         }
       } catch (error) {
+        // EDRT REMOVE THIS BEFORE MERGING Fails here
         logger.error(`find error: pattern: ${pattern} layer.path: ${layer.path} error: ${JSON.stringify(error)}`)
         throw error
       }
