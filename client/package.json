@@ -14,6 +14,10 @@
   "version": "2.0.0",
   "publisher": "yocto-project",
   "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1f1f1f",
+    "theme": "dark"
+  },
   "bugs": {
     "url": "https://github.com/yoctoproject/vscode-bitbake/issues"
   },
